@@ -107,6 +107,9 @@ open class WebSocketFlow<T>(
     fun unsubscribe(lifecycleOwner: LifecycleOwner) {
         val id = lifecycleOwner.hashCode()
         lifecycleOwnerSubscriptions[id]?.cancel()
+            ?: run {
+                logW("There is no active subscription of client id=$id")
+            }
     }
 
     /**
@@ -115,10 +118,10 @@ open class WebSocketFlow<T>(
     fun close() {
         if (socketState == STATE_CLOSED) {
             logI("Socket is closed")
-            return
+        } else {
+            pause()
+            close(CODE_SHUTDOWN)
         }
-        pause()
-        close(CODE_SHUTDOWN)
     }
 
     /**
@@ -126,15 +129,22 @@ open class WebSocketFlow<T>(
      */
     fun pause() {
         stopConnecting()
-        socketState = STATE_PAUSED
-        logI("Socket is paused")
+        if (socketState == STATE_CLOSED) {
+            logI("Socket is closed")
+        } else {
+            socketState = STATE_PAUSED
+            logI("Socket is paused")
+        }
     }
 
     /**
      * Resumes the socket if there are some subscribers else starts connecting
      */
     fun resume() {
-        if (socketState in arrayOf(STATE_OPENED, STATE_CONNECTING)) return
+        if (socketState in arrayOf(STATE_OPEN, STATE_CONNECTING)) {
+            logI("Socket is resumed")
+            return
+        }
         if (socket == null) {
             if (clientsCounter.get() == 0) {
                 logW("Unable to resume socket if there are not client's subscriptions")
@@ -144,17 +154,17 @@ open class WebSocketFlow<T>(
                 startConnecting()
             }
         } else {
-            socketState = STATE_OPENED
+            socketState = STATE_OPEN
             logI("Socket is resumed")
         }
     }
 
     /**
-     * Sends data with the socket if it's in OPENED state
+     * Sends data to the socket if it's in [STATE_OPEN]
      * @return true on success
      */
     fun send(data: String): Boolean {
-        return if (socketState != STATE_OPENED) {
+        return if (socketState != STATE_OPEN) {
             logW("Unable to send data to socket in $socketState")
             false
         } else socket?.send(data) ?: false
@@ -177,14 +187,14 @@ open class WebSocketFlow<T>(
                     try {
                         if (!needToConnect()) return@withContext
                         socketState = STATE_CONNECTING
-                        logI("Start connecting...")
+                        logI("Start connecting to ${settings.socketUrl}...")
                         val job = timerFlow(
                             settings.connectTimeoutMills, settings.connectInitDelayMills
                         ).onEach {
-                            if (socketState != STATE_OPENED) {
+                            if (socketState != STATE_OPEN) {
                                 onConnecting()
                             } else {
-                                logI("Connection is already opened")
+                                logI("Connection is already open")
                                 stopConnecting()
                                 startSilenceTimer()
                             }
@@ -272,14 +282,16 @@ open class WebSocketFlow<T>(
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         logI("onOpen: response = %s", response.message)
-        socketState = STATE_OPENED
+        socketState = STATE_OPEN
         stopConnecting()
         startSilenceTimer()
+        logI("Socket connection to ${settings.socketUrl} is open")
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         logW("onClosed: code = %d, reason = %s", code, reason)
         socketState = STATE_CLOSED
+        logI("Socket connection to ${settings.socketUrl} is closed")
         socket = null
         if (SocketCloseCode.fromInt(code) in arrayOf(CODE_NO_CLIENTS, CODE_SHUTDOWN))
             stopSilenceTimer()
@@ -336,9 +348,9 @@ open class WebSocketFlow<T>(
             .onEach { newCount ->
                 val oldCount = clientsCounter.getAndSet(newCount)
                 if (newCount > oldCount)
-                    logI("Client subscribed (count=%d)", newCount)
+                    logI("Client subscribed (clients count=%d)", newCount)
                 else if (newCount < oldCount) {
-                    logI("Client unsubscribed (count=%d)", newCount)
+                    logI("Client unsubscribed (clients count=%d)", newCount)
                     removeInactiveSubscriptions()
                 }
                 // if there are no clients - close the connection, else resume
@@ -376,7 +388,7 @@ open class WebSocketFlow<T>(
      */
     enum class SocketState {
         STATE_CONNECTING, // socket is connecting
-        STATE_OPENED,     // socket is opened
+        STATE_OPEN,       // socket is open
         STATE_PAUSED,     // socket is paused for connecting and data receiving/sending
         STATE_CLOSED      // socket is closed
     }
@@ -438,7 +450,7 @@ open class WebSocketFlow<T>(
      * @param socketUrl socket server url
      * @param connectTimeoutMills timeout between socket connection attempts
      * @param connectInitDelayMills starting timeout before socket connection attempt
-     * @param silenceTimeoutMills if opened socket wouldn't receive any message in this timeout - it'll be reopened
+     * @param silenceTimeoutMills if open socket wouldn't receive any message in this timeout - it'll be reopen
      * @param readTimeoutMills default read timeout for new connections
      * @param pingTimeoutMills interval between HTTP/2 and web socket pings initiated by this client
      */
