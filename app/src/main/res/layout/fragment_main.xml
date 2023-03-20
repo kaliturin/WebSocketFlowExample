@@ -9,61 +9,54 @@
     tools:context=".ui.main.MainFragment"
     tools:ignore="HardcodedText">
 
-    <ScrollView
+    <com.google.android.flexbox.FlexboxLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:flexDirection="row"
+        app:flexWrap="wrap">
 
-        <com.google.android.flexbox.FlexboxLayout
-            android:layout_marginTop="8dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:flexDirection="row"
-            app:flexWrap="wrap">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/connect1Button"
+            style="@style/MyMaterialButton"
+            android:text="Connect client 1" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/connect1Button"
-                style="@style/MyMaterialButton"
-                android:text="Connect client 1" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/connect2Button"
+            style="@style/MyMaterialButton"
+            android:text="Connect client 2" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/connect2Button"
-                style="@style/MyMaterialButton"
-                android:text="Connect client 2" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pauseButton"
+            style="@style/MyMaterialButton"
+            android:text="Pause socket" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/pauseButton"
-                style="@style/MyMaterialButton"
-                android:text="Pause socket" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/resumeButton"
+            style="@style/MyMaterialButton"
+            android:text="Resume socket" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/resumeButton"
-                style="@style/MyMaterialButton"
-                android:text="Resume socket" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/sendButton"
+            style="@style/MyMaterialButton"
+            android:text="Send to socket" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/sendButton"
-                style="@style/MyMaterialButton"
-                android:text="Send to socket" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/closeButton"
+            style="@style/MyMaterialButton"
+            android:text="Close socket" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/closeButton"
-                style="@style/MyMaterialButton"
-                android:text="Close socket" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startLifecycleButton"
+            style="@style/MyMaterialButton"
+            android:text="Start lifecycle" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/startLifecycleButton"
-                style="@style/MyMaterialButton"
-                android:text="Start lifecycle" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stopLifecycleButton"
+            style="@style/MyMaterialButton"
+            android:text="Stop lifecycle" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/stopLifecycleButton"
-                style="@style/MyMaterialButton"
-                android:text="Stop lifecycle" />
-
-        </com.google.android.flexbox.FlexboxLayout>
-
-    </ScrollView>
+    </com.google.android.flexbox.FlexboxLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/logRecyclerView"

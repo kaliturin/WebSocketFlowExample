@@ -42,7 +42,7 @@ open class WebSocketFlow<T>(
     private val loggerFlow = MutableSharedFlow<LogMessage>()
 
     /**
-     * Current socket state. Sometimes it's useful to know it when you want to send something
+     * Socket's current state
      */
     var socketState: SocketState
         private set(value) {
@@ -73,11 +73,8 @@ open class WebSocketFlow<T>(
     /**
      * Listens the socket's flow for data collection
      */
-    fun listen(coroutineScope: CoroutineScope, collector: FlowCollector<T>) {
-        coroutineScope.launch {
-            flow().collect(collector)
-        }
-    }
+    fun listen(coroutineScope: CoroutineScope, collector: FlowCollector<T>) =
+        coroutineScope.launch { listen(collector) }
 
     /**
      * Pauses and closes the socket with shutdown code. For reopening - use [resume]
@@ -319,7 +316,7 @@ open class WebSocketFlow<T>(
         String.format("t${Thread.currentThread().id} $message", *args)
 
     /**
-     * Socket's state
+     * Socket's states
      */
     enum class SocketState {
         STATE_CONNECTING, // socket is connecting
@@ -370,6 +367,11 @@ open class WebSocketFlow<T>(
         suspend fun fromByteString(bytes: ByteString): T? = null
     }
 
+    /**
+     * Log message holder
+     * @param message message text
+     * @param priority log priority one of [Log.DEBUG],[Log.INFO],[Log.WARN],[Log.ERROR]
+     */
     data class LogMessage(
         val message: String,
         val priority: Int = Log.DEBUG
@@ -377,6 +379,12 @@ open class WebSocketFlow<T>(
 
     /**
      * WebSocket's settings
+     * @param socketUrl socket server url
+     * @param connectTimeoutMills timeout between socket connection attempts
+     * @param connectInitDelayMills starting timeout before socket connection attempt
+     * @param silenceTimeoutMills if opened socket wouldn't receive any message in this timeout - it'll be reopened
+     * @param readTimeoutMills default read timeout for new connections
+     * @param pingTimeoutMills interval between HTTP/2 and web socket pings initiated by this client
      */
     class SocketSettings(
         val socketUrl: String,
@@ -388,8 +396,8 @@ open class WebSocketFlow<T>(
     )
 
     companion object {
-        private const val CONNECT_TIMEOUT_MILLS = 2_000L
-        private const val CONNECT_INIT_DELAY_MILLS = 2_000L
+        private const val CONNECT_TIMEOUT_MILLS = 5_000L
+        private const val CONNECT_INIT_DELAY_MILLS = 1_000L
         private const val SILENCE_TIMEOUT_MILLS = 60_000L
         private const val READ_TIMEOUT_MILLS = 30_000L
         private const val PING_TIMEOUT_MILLS = 10_000L
