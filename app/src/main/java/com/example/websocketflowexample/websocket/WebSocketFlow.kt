@@ -1,6 +1,7 @@
 package com.example.websocketflowexample.websocket
 
 import android.util.Log
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.example.websocketflowexample.websocket.WebSocketFlow.ResponseDeserializer
@@ -12,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import okhttp3.*
 import okio.ByteString
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -34,6 +36,7 @@ open class WebSocketFlow<T>(
     private val clientsCounter = AtomicInteger(0)
     private val socketStateRef = AtomicReference(STATE_CLOSED)
     private val socketConnectingMutex = Mutex()
+    private val lifecycleOwnerSubscriptions = ConcurrentHashMap<Int, Job>()
     private val socketConnectingJobRef = AtomicReference<Job>()
     private val clientsCountingJobRef = AtomicReference<Job>()
     private val socketCheckSilenceJobRef = AtomicReference<Job>()
@@ -61,25 +64,59 @@ open class WebSocketFlow<T>(
     }
 
     /**
-     * @return socket's flow for data collection
+     * @return socket's flow for a data collection
      */
     fun flow(): Flow<T> = socketFlow
 
     /**
-     * Listens the socket's flow for data collection
+     * Subscribes for listening to the socket's flow for a data collection
      */
-    suspend fun listen(collector: FlowCollector<T>) = flow().collect(collector)
+    suspend fun subscribe(collector: FlowCollector<T>) = flow().collect(collector)
 
     /**
-     * Listens the socket's flow for data collection
+     * Subscribes for listening to the socket's flow for a data collection
      */
-    fun listen(coroutineScope: CoroutineScope, collector: FlowCollector<T>) =
-        coroutineScope.launch { listen(collector) }
+    fun subscribe(coroutineScope: CoroutineScope, collector: FlowCollector<T>): Job {
+        return coroutineScope.launch { subscribe(collector) }
+    }
+
+    /**
+     * Subscribes a lifecycle owner for listening to the socket's flow for a data collection.
+     * Allows to escape repeating subscriptions with the same lifecycle owner.
+     * This method is recommended to use in common case when single subscription per lifecycle
+     * owner is supposed to be.
+     */
+    fun subscribe(lifecycleOwner: LifecycleOwner, collector: FlowCollector<T>): Job {
+        val id = lifecycleOwner.hashCode()
+        val job = lifecycleOwnerSubscriptions[id]
+        return if (job?.isActive == true) {
+            logW("Client id=$id already has active subscription")
+            job
+        } else {
+            subscribe(lifecycleOwner.lifecycleScope, collector).also {
+                lifecycleOwnerSubscriptions[id] = it
+                logI("Client id=${id} active subscription has been saved")
+            }
+        }
+    }
+
+    /**
+     * Unsubscribes a lifecycle owner from listening to the socket's flow. In common cases yon
+     * won't need to call this method manually. Because coroutines lifecycle does it for you.
+     */
+    fun unsubscribe(lifecycleOwner: LifecycleOwner) {
+        val id = lifecycleOwner.hashCode()
+        lifecycleOwnerSubscriptions[id]?.cancel()
+    }
 
     /**
      * Pauses and closes the socket with shutdown code. For reopening - use [resume]
      */
     fun close() {
+        if (socketState == STATE_CLOSED) {
+            logI("Socket is closed")
+            return
+        }
         pause()
         close(CODE_SHUTDOWN)
     }
@@ -88,9 +125,9 @@ open class WebSocketFlow<T>(
      * Pauses the socket
      */
     fun pause() {
-        logI("Pausing socket...")
         stopConnecting()
         socketState = STATE_PAUSED
+        logI("Socket is paused")
     }
 
     /**
@@ -98,12 +135,17 @@ open class WebSocketFlow<T>(
      */
     fun resume() {
         if (socketState in arrayOf(STATE_OPENED, STATE_CONNECTING)) return
-        logI("Resuming socket...")
         if (socket == null) {
-            socketState = STATE_CLOSED
-            startConnecting()
+            if (clientsCounter.get() == 0) {
+                logW("Unable to resume socket if there are not client's subscriptions")
+            } else {
+                logI("Resuming socket...")
+                socketState = STATE_CLOSED
+                startConnecting()
+            }
         } else {
             socketState = STATE_OPENED
+            logI("Socket is resumed")
         }
     }
 
@@ -112,8 +154,10 @@ open class WebSocketFlow<T>(
      * @return true on success
      */
     fun send(data: String): Boolean {
-        return if (socketState != STATE_OPENED) false else
-            socket?.send(data) ?: false
+        return if (socketState != STATE_OPENED) {
+            logW("Unable to send data to socket in $socketState")
+            false
+        } else socket?.send(data) ?: false
     }
 
     /**
@@ -277,21 +321,33 @@ open class WebSocketFlow<T>(
         }
     }
 
+    private fun removeInactiveSubscriptions() {
+        lifecycleOwnerSubscriptions.entries.forEach {
+            if (!it.value.isActive) {
+                lifecycleOwnerSubscriptions.remove(it.key)
+                logI("Client id=${it.key} inactive subscription has been removed")
+            }
+        }
+    }
+
     private fun startClientsCounting() {
         val job = socketFlow
             .subscriptionCount
             .onEach { newCount ->
                 val oldCount = clientsCounter.getAndSet(newCount)
                 if (newCount > oldCount)
-                    logI("Client %d subscribed", newCount)
-                else if (newCount < oldCount)
-                    logI("Client %d unsubscribed", oldCount)
-                // there is no any client - close the connection, else resume
+                    logI("Client subscribed (count=%d)", newCount)
+                else if (newCount < oldCount) {
+                    logI("Client unsubscribed (count=%d)", newCount)
+                    removeInactiveSubscriptions()
+                }
+                // if there are no clients - close the connection, else resume
                 if (newCount == 0)
                     close(CODE_NO_CLIENTS)
                 else
                     resume()
-            }.launchIn(coroutineScope)
+            }
+            .launchIn(coroutineScope)
         clientsCountingJobRef.getAndSet(job)?.cancel()
     }
 

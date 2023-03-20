@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.core.view.isVisible
 import androidx.core.view.postDelayed
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -31,18 +32,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         binding.logRecyclerView.adapter = logRecyclerAdapter
         webSocket.listenLog(lifecycleScope) { log(it) }
 
-        binding.connect1Button.setOnClickListener {
-            // TODO: every click creates a new connection
-            webSocket.listen(lifecycleScope) {
-                log("client1 collected = $it")
+        binding.subscribeButton.setOnClickListener {
+            webSocket.subscribe(viewLifecycleOwner) {
+                log("Client received: $it")
             }
         }
 
-        binding.connect2Button.setOnClickListener {
-            // TODO: every click creates a new connection
-            webSocket.listen(lifecycleScope) {
-                log("client2 collected = $it")
-            }
+        binding.unsubscribeButton.setOnClickListener {
+            webSocket.unsubscribe(viewLifecycleOwner)
         }
 
         binding.pauseButton.setOnClickListener {
@@ -62,8 +59,13 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         binding.startLifecycleButton.setOnClickListener {
-            startActivity(Intent(requireContext(), MainActivity::class.java))
+            val intent = Intent(requireContext(), MainActivity::class.java)
+            intent.putExtra(DERIVED, true)
+            startActivity(intent)
         }
+
+        binding.stopLifecycleButton.isVisible =
+            activity?.intent?.getBooleanExtra(DERIVED, false) == true
 
         binding.stopLifecycleButton.setOnClickListener {
             activity?.finish()
@@ -88,5 +90,9 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 smoothScrollToPosition(logRecyclerAdapter.itemCount)
             }
         }
+    }
+
+    companion object {
+        private const val DERIVED = "derived"
     }
 }

@@ -17,24 +17,14 @@
         app:flexWrap="wrap">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/connect1Button"
+            android:id="@+id/subscribeButton"
             style="@style/MyMaterialButton"
-            android:text="Connect client 1" />
+            android:text="Subscribe to socket" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/connect2Button"
+            android:id="@+id/unsubscribeButton"
             style="@style/MyMaterialButton"
-            android:text="Connect client 2" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/pauseButton"
-            style="@style/MyMaterialButton"
-            android:text="Pause socket" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/resumeButton"
-            style="@style/MyMaterialButton"
-            android:text="Resume socket" />
+            android:text="Unsubscribe from socket" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sendButton"
@@ -45,6 +35,16 @@
             android:id="@+id/closeButton"
             style="@style/MyMaterialButton"
             android:text="Close socket" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pauseButton"
+            style="@style/MyMaterialButton"
+            android:text="Pause socket" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/resumeButton"
+            style="@style/MyMaterialButton"
+            android:text="Resume socket" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/startLifecycleButton"
