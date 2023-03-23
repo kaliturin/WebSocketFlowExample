@@ -437,16 +437,6 @@ class WebSocketFlow<T>(
     }
 
     /**
-     * Log message holder
-     * @param message message text
-     * @param priority log priority one of [Log.DEBUG],[Log.INFO],[Log.WARN],[Log.ERROR]
-     */
-    data class LogMessage(
-        val message: String,
-        val priority: Int = Log.DEBUG
-    )
-
-    /**
      * WebSocket's settings
      * @param socketUrl socket server url
      * @param connectTimeoutMills timeout between socket connection attempts

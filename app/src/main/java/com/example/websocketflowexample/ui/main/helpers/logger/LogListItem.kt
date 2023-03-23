@@ -1,4 +1,4 @@
-package com.example.websocketflowexample.ui.main
+package com.example.websocketflowexample.ui.main.helpers.logger
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -6,12 +6,12 @@ import android.util.Log
 import android.view.View
 import com.example.websocketflowexample.R
 import com.example.websocketflowexample.databinding.LogListItemBinding
-import com.example.websocketflowexample.websocket.WebSocketFlow
+import com.example.websocketflowexample.websocket.LogMessage
 import com.xwray.groupie.Item
 import com.xwray.groupie.viewbinding.BindableItem
 
 class LogListItem(
-    val logMessage: WebSocketFlow.LogMessage
+    val logMessage: LogMessage
 ) : BindableItem<LogListItemBinding>() {
 
     override fun initializeViewBinding(view: View) = LogListItemBinding.bind(view)
