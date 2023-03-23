@@ -15,6 +15,8 @@ import com.example.websocketflowexample.MainActivity
 import com.example.websocketflowexample.R
 import com.example.websocketflowexample.databinding.FragmentMainBinding
 import com.example.websocketflowexample.websocket.WebSocketFlow
+import com.example.websocketflowexample.websocket.impl.SocketResponse
+import com.example.websocketflowexample.websocket.impl.SocketResponseBuilder
 import com.xwray.groupie.GroupAdapter
 import com.xwray.groupie.GroupieViewHolder
 import org.koin.android.ext.android.inject
@@ -23,7 +25,7 @@ import java.util.*
 
 class MainFragment : Fragment(R.layout.fragment_main) {
     private val binding by viewBinding(FragmentMainBinding::bind)
-    private val webSocket: WebSocketFlow<String> by inject()
+    private val webSocket: WebSocketFlow<SocketResponse> by inject()
     private val logRecyclerAdapter = GroupAdapter<GroupieViewHolder>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -34,7 +36,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
         binding.subscribeButton.setOnClickListener {
             webSocket.subscribe(viewLifecycleOwner) {
-                log("Client received: $it")
+                if (it.error != null)
+                    log("onFailure: ${it.error}", Log.ERROR)
+                else
+                    log("onMessage: $it")
             }
         }
 
@@ -55,7 +60,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         binding.sendButton.setOnClickListener {
-            webSocket.send(Random().nextInt().toString())
+            webSocket.send(generateSocketResponse().toString())
         }
 
         binding.startLifecycleButton.setOnClickListener {
@@ -78,7 +83,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
     }
 
     private fun log(message: String, level: Int = Log.DEBUG) {
-        val formatted = "t${Thread.currentThread().id} $message"
+        val formatted = "Client(thread=${Thread.currentThread().id}) $message"
         Timber.d(formatted)
         log(WebSocketFlow.LogMessage(formatted, level))
     }
@@ -90,6 +95,22 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 smoothScrollToPosition(logRecyclerAdapter.itemCount)
             }
         }
+    }
+
+    private fun generateSocketResponse(): SocketResponse {
+        val r = Random()
+        val builder = SocketResponseBuilder()
+        if (r.nextBoolean()) {
+            fun i() = r.nextInt(10000)
+            builder.header(SocketResponse.Header.Type.INT_DATA)
+                .body(intData = listOf(i(), i(), i()))
+        } else {
+            fun s() = UUID.randomUUID().toString()
+                .replace("[0-9-]".toRegex(), "").uppercase().take(4)
+            builder.header(SocketResponse.Header.Type.STRING_DATA)
+                .body(strData = listOf(s(), s(), s()))
+        }
+        return builder.build()
     }
 
     companion object {

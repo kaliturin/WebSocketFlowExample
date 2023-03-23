@@ -1,7 +1,7 @@
 package com.example.websocketflowexample.di
 
 import com.example.websocketflowexample.websocket.WebSocketFlow
-import com.example.websocketflowexample.websocket.impl.StringResponseDeserializer
+import com.example.websocketflowexample.websocket.impl.SocketResponseDeserializer
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.dsl.module
@@ -31,7 +31,7 @@ object KoinModule {
                 .readTimeout(settings.readTimeoutMills, TimeUnit.MILLISECONDS)
                 .pingInterval(settings.pingTimeoutMills, TimeUnit.MILLISECONDS)
                 .build()
-            val deserializer = StringResponseDeserializer()
+            val deserializer = SocketResponseDeserializer()
             WebSocketFlow(settings, socketFactory, deserializer)
         }
     }

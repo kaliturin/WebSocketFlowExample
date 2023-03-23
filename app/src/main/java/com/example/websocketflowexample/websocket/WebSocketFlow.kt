@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference
  * @param coroutineScope socket's coroutine scope (supposing with +Dispatchers.IO)
  */
 @Suppress("MemberVisibilityCanBePrivate")
-open class WebSocketFlow<T>(
+class WebSocketFlow<T>(
     private val settings: SocketSettings,
     private val socketFactory: WebSocket.Factory,
     private val responseDeserializer: ResponseDeserializer<T>,
@@ -245,7 +245,7 @@ open class WebSocketFlow<T>(
     }
 
     private fun onMessage(string: String) {
-        if (socketState == STATE_PAUSED) return
+        if (socketState != STATE_OPEN) return
         coroutineScope.launch {
             responseDeserializer.fromString(string)?.let {
                 socketFlow.emit(it) // send to clients
@@ -254,7 +254,7 @@ open class WebSocketFlow<T>(
     }
 
     private fun onMessage(byteString: ByteString) {
-        if (socketState == STATE_PAUSED) return
+        if (socketState != STATE_OPEN) return
         coroutineScope.launch {
             responseDeserializer.fromByteString(byteString)?.let {
                 socketFlow.emit(it) // send to clients
@@ -263,6 +263,7 @@ open class WebSocketFlow<T>(
     }
 
     private fun startSilenceTimer() {
+        if (settings.silenceTimeoutMills <= 0L) return
         coroutineScope.launch {
             withContext(Dispatchers.IO) {
                 val job = timerFlow(
@@ -293,16 +294,15 @@ open class WebSocketFlow<T>(
         socketState = STATE_CLOSED
         logI("Socket connection to ${settings.socketUrl} is closed")
         socket = null
-        if (SocketCloseCode.fromInt(code) in arrayOf(CODE_NO_CLIENTS, CODE_SHUTDOWN))
-            stopSilenceTimer()
-        else
-            startConnecting()
+        stopSilenceTimer()
+        if (SocketCloseCode.fromInt(code) == CODE_SILENCE_TIMER) startConnecting()
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
         logE("onFailure: error = %s", t.toString())
         onFailure(t)
         socket = null
+        stopSilenceTimer()
         if (socketState !in arrayOf(STATE_CONNECTING, STATE_PAUSED)) {
             socketState = STATE_CLOSED
             startConnecting()
@@ -310,13 +310,13 @@ open class WebSocketFlow<T>(
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-        log("onMessage: byte string size = %d", bytes.size)
+        logV("onMessage: byte string size = %d", bytes.size)
         onMessage(bytes)
         startSilenceTimer()
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
-        log("onMessage: %s", text)
+        logV("onMessage: %s", text)
         onMessage(text)
         startSilenceTimer()
     }
@@ -372,6 +372,7 @@ open class WebSocketFlow<T>(
     }
 
     private fun log(message: String, vararg args: Any?) = log(Log.DEBUG, message, *args)
+    private fun logV(message: String, vararg args: Any?) = log(Log.VERBOSE, message, *args)
     private fun logI(message: String, vararg args: Any?) = log(Log.INFO, message, *args)
 
     @Suppress("SameParameterValue")
@@ -381,7 +382,7 @@ open class WebSocketFlow<T>(
     private fun logE(message: String, vararg args: Any?) = log(Log.ERROR, message, *args)
 
     private fun formatLog(message: String?, vararg args: Any?) =
-        String.format("t${Thread.currentThread().id} $message", *args)
+        String.format("WebSocket(thread=${Thread.currentThread().id}) $message", *args)
 
     /**
      * Socket's states
@@ -450,7 +451,8 @@ open class WebSocketFlow<T>(
      * @param socketUrl socket server url
      * @param connectTimeoutMills timeout between socket connection attempts
      * @param connectInitDelayMills starting timeout before socket connection attempt
-     * @param silenceTimeoutMills if open socket wouldn't receive any message in this timeout - it'll be reopen
+     * @param silenceTimeoutMills if open socket wouldn't receive any message in this timeout -
+     * it'll be reopen. If value = 0 - not using
      * @param readTimeoutMills default read timeout for new connections
      * @param pingTimeoutMills interval between HTTP/2 and web socket pings initiated by this client
      */
