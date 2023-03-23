@@ -2,7 +2,6 @@ package com.example.websocketflowexample.ui.main
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -20,21 +19,21 @@ import org.koin.android.ext.android.inject
 class MainFragment : Fragment(R.layout.fragment_main) {
     private val binding by viewBinding(FragmentMainBinding::bind)
     private val webSocket: WebSocketFlow<SocketResponse> by inject()
-    private var logger: RecyclerLoggerHelper? = null
     private val socketResponseGenerator = SocketResponseGenerator()
+    private lateinit var logger: RecyclerLoggerHelper
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         logger = RecyclerLoggerHelper(binding.logRecyclerView, "Client")
-        webSocket.listenLog(lifecycleScope) { logger?.log(it) }
+        webSocket.listenLog(lifecycleScope) { logger.log(it) }
 
         binding.subscribeButton.setOnClickListener {
             webSocket.subscribe(viewLifecycleOwner) {
                 if (it.error != null)
-                    logger?.log("onFailure: ${it.error}", Log.ERROR)
+                    logger.e("onFailure: ${it.error}")
                 else
-                    logger?.log("onMessage: $it")
+                    logger.d("onMessage: $it")
             }
         }
 

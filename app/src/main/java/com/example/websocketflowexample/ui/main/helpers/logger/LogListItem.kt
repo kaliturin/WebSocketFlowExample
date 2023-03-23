@@ -36,7 +36,8 @@ class LogListItem(
             Log.DEBUG to Pair("D", Color.BLACK),
             Log.INFO to Pair("I", Color.BLUE),
             Log.WARN to Pair("W", Color.MAGENTA),
-            Log.ERROR to Pair("E", Color.RED)
+            Log.ERROR to Pair("E", Color.RED),
+            Log.ASSERT to Pair("A", Color.RED)
         )
         val defRes = Pair("", Color.BLACK)
     }

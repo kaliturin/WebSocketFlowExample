@@ -24,6 +24,13 @@ class RecyclerLoggerHelper(
             .findLastCompletelyVisibleItemPosition() + 2 >= (adapter?.itemCount ?: 0)
     }
 
+    fun v(message: String) = log(message, Log.VERBOSE)
+    fun d(message: String) = log(message, Log.DEBUG)
+    fun i(message: String) = log(message, Log.INFO)
+    fun w(message: String) = log(message, Log.WARN)
+    fun e(message: String) = log(message, Log.ERROR)
+    fun a(message: String) = log(message, Log.ASSERT)
+
     fun log(message: String, level: Int = Log.DEBUG) {
         val formatted = "$prefix(thread=${Thread.currentThread().id}) $message"
         Timber.d(formatted)
